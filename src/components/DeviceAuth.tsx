@@ -1,14 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Shield, Fingerprint, Lock, Smartphone, Key } from 'lucide-react';
+import { Shield, Fingerprint, Smartphone, Key } from 'lucide-react';
 import { DeviceIdentity } from '../services/DeviceIdentityService';
 
 export const DeviceAuth: React.FC<{ onAuthenticated: () => void }> = ({ onAuthenticated }) => {
   const [status, setStatus] = useState<string>('Initializing secure enclave...');
   const [isRegistering, setIsRegistering] = useState(false);
-  const [logs, setLogs] = useState<string[]>([]);
-
-  const addLog = (msg: string) => setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
 
   useEffect(() => {
     checkExistingIdentity();
@@ -16,19 +13,15 @@ export const DeviceAuth: React.FC<{ onAuthenticated: () => void }> = ({ onAuthen
 
   const checkExistingIdentity = async () => {
     try {
-      addLog('Checking for existing hardware identity...');
       const identity = await DeviceIdentity.getIdentity();
 
       if (identity.hasIdentity) {
         setStatus('Hardware identity found. Authenticating...');
-        addLog('Identity verified locally.');
         await performAuthentication();
       } else {
         setStatus('No identity found on this device.');
-        addLog('Device is unregistered.');
       }
     } catch (e: any) {
-      addLog(`Error checking identity: ${e.message}`);
       setStatus('Error checking secure storage.');
     }
   };
@@ -36,15 +29,9 @@ export const DeviceAuth: React.FC<{ onAuthenticated: () => void }> = ({ onAuthen
   const registerDevice = async () => {
     setIsRegistering(true);
     setStatus('Generating hardware-backed keypair...');
-    addLog('Requesting Ed25519 key generation in Android Keystore...');
 
     try {
-      const result = await DeviceIdentity.generateIdentity();
-      addLog('Successfully generated hardware-bound identity.');
-      addLog(`Fingerprint Hash: ${result.deviceFingerprint.substring(0, 16)}...`);
-      addLog(`Public Key: ${result.publicKey.substring(0, 16)}...`);
-      addLog(`Trusted Device ID: ${result.trustedDeviceId}`);
-
+      await DeviceIdentity.generateIdentity();
       setStatus('Device physically bound to account.');
 
       // Simulate registering with backend
@@ -53,7 +40,6 @@ export const DeviceAuth: React.FC<{ onAuthenticated: () => void }> = ({ onAuthen
       }, 1500);
 
     } catch (e: any) {
-      addLog(`Registration failed: ${e.message}`);
       setStatus('Failed to secure device.');
       setIsRegistering(false);
     }
@@ -61,24 +47,19 @@ export const DeviceAuth: React.FC<{ onAuthenticated: () => void }> = ({ onAuthen
 
   const performAuthentication = async () => {
     setStatus('Authenticating with backend...');
-    addLog('Requesting cryptographic challenge from server...');
 
     try {
       // 1. Simulate getting a nonce from backend
       const serverNonce = `nonce-${Math.random().toString(36).substring(7)}`;
-      addLog(`Received challenge: ${serverNonce}`);
 
       // 2. Sign challenge using hardware key
       setStatus('Signing challenge securely...');
-      const signResult = await DeviceIdentity.signChallenge({ nonce: serverNonce });
-
-      addLog(`Generated valid signature: ${signResult.signature.substring(0, 16)}...`);
+      await DeviceIdentity.signChallenge({ nonce: serverNonce });
 
       // 3. Simulate backend verification
       setStatus('Backend verifying signature and fingerprint...');
 
       setTimeout(() => {
-        addLog('Authentication successful. Session granted.');
         setStatus('Secure Session Established');
         setTimeout(() => {
           onAuthenticated();
@@ -86,7 +67,6 @@ export const DeviceAuth: React.FC<{ onAuthenticated: () => void }> = ({ onAuthen
       }, 1000);
 
     } catch (e: any) {
-      addLog(`Authentication failed: ${e.message}`);
       setStatus('Authentication rejected.');
     }
   };
@@ -129,22 +109,7 @@ export const DeviceAuth: React.FC<{ onAuthenticated: () => void }> = ({ onAuthen
              <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Physical Lock</span>
            </div>
         </div>
-
       </motion.div>
-
-      {/* Audit Log for Demo Purposes */}
-      <div className="w-full max-w-sm mt-8 bg-gray-900 rounded-2xl p-4 shadow-float">
-        <div className="flex items-center gap-2 mb-3">
-          <Lock className="w-4 h-4 text-accent" />
-          <span className="text-xs font-medium text-gray-300 uppercase tracking-wider">Security Audit Log</span>
-        </div>
-        <div className="h-32 overflow-y-auto font-mono text-[10px] text-green-400 space-y-1">
-          {logs.map((log, i) => (
-            <div key={i}>{log}</div>
-          ))}
-          {logs.length === 0 && <div className="text-gray-500">Waiting for events...</div>}
-        </div>
-      </div>
     </div>
   );
 };

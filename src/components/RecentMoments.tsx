@@ -1,43 +1,59 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Heart, MessageCircle } from 'lucide-react';
 
-const MOMENTS = [
-  {
-    id: 1,
-    user: 'Sarah',
-    avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026704a',
-    image: 'https://images.unsplash.com/photo-1511895426328-dc8714191300?q=80&w=600&auto=format&fit=crop',
-    timeLabel: '2h ago',
-    timeLeftPct: 30, // represents how much of the 24h is left visually
-    reactions: 3
-  },
-  {
-    id: 2,
-    user: 'Alex',
-    avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026704b',
-    image: 'https://images.unsplash.com/photo-1497935586351-b67a49e012bf?q=80&w=600&auto=format&fit=crop',
-    timeLabel: '5h ago',
-    timeLeftPct: 60,
-    reactions: 1
-  }
-];
+export interface Moment {
+  id: string;
+  user: string;
+  avatar: string;
+  image: string;
+  timestamp: number; // created at
+  expiresAt: number; // when it disappears (usually timestamp + 22h)
+  reactions: number;
+}
 
-export const RecentMoments: React.FC = () => {
+interface RecentMomentsProps {
+  moments: Moment[];
+}
+
+export const RecentMoments: React.FC<RecentMomentsProps> = ({ moments }) => {
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    // Update the "now" state every minute to refresh relative times and progress bars
+    const interval = setInterval(() => setNow(Date.now()), 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const getRelativeTime = (timestamp: number) => {
+    const diffMins = Math.floor((now - timestamp) / 60000);
+    if (diffMins < 60) return `${Math.max(1, diffMins)}m ago`;
+    return `${Math.floor(diffMins / 60)}h ago`;
+  };
+
+  const getTimeLeftPct = (timestamp: number, expiresAt: number) => {
+    const totalDuration = expiresAt - timestamp;
+    const timePassed = now - timestamp;
+    const pct = 100 - ((timePassed / totalDuration) * 100);
+    return Math.max(0, Math.min(100, pct));
+  };
+
+  if (moments.length === 0) return null;
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between px-1">
         <h3 className="font-serif text-lg font-semibold text-gray-900">Recent Moments</h3>
-        <span className="text-xs text-gray-400 font-medium bg-gray-100 px-2 py-1 rounded-full">Disappearing in 24h</span>
+        <span className="text-xs text-gray-400 font-medium bg-gray-100 px-2 py-1 rounded-full">Disappearing in 22h</span>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        {MOMENTS.map((moment, idx) => (
+        {moments.map((moment, idx) => (
           <motion.div
             key={moment.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 + idx * 0.1 }}
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: idx * 0.1, type: "spring" }}
             className="group relative rounded-2xl overflow-hidden aspect-[4/5] bg-gray-100 shadow-sm"
           >
             {/* Image */}
@@ -53,18 +69,18 @@ export const RecentMoments: React.FC = () => {
             {/* Ephemeral Progress Bar (Top) */}
             <div className="absolute top-2 left-2 right-2 h-1 bg-white/30 rounded-full overflow-hidden backdrop-blur-sm">
                <div
-                 className="h-full bg-white/90 rounded-full"
-                 style={{ width: `${moment.timeLeftPct}%` }}
+                 className="h-full bg-white/90 rounded-full transition-all duration-1000"
+                 style={{ width: `${getTimeLeftPct(moment.timestamp, moment.expiresAt)}%` }}
                />
             </div>
 
             {/* Header / User */}
             <div className="absolute top-4 left-3 right-3 flex justify-between items-center">
                <div className="flex items-center gap-2">
-                 <img src={moment.avatar} className="w-6 h-6 rounded-full border border-white/50" alt={moment.user} />
+                 <img src={moment.avatar} className="w-6 h-6 rounded-full border border-white/50 object-cover" alt={moment.user} />
                  <span className="text-white text-xs font-medium drop-shadow-md">{moment.user}</span>
                </div>
-               <span className="text-white/80 text-[10px] font-medium drop-shadow-md">{moment.timeLabel}</span>
+               <span className="text-white/80 text-[10px] font-medium drop-shadow-md">{getRelativeTime(moment.timestamp)}</span>
             </div>
 
             {/* Interactions (Bottom) */}

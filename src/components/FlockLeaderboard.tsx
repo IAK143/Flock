@@ -1,8 +1,24 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Flame, Trophy, TrendingUp, Share } from 'lucide-react';
+import { Flame, Trophy, TrendingUp, TrendingDown, Share } from 'lucide-react';
 
-export const FlockLeaderboard: React.FC = () => {
+export interface LeaderboardStats {
+  rank: number;
+  rankChange: number;
+  flockName: string;
+  memberCount: number;
+  percentile: number;
+  weeklyXp: number; // e.g. 12400
+  streak: number;
+  energyPercent: number;
+  members: { id: string; avatar: string }[];
+}
+
+interface FlockLeaderboardProps {
+  stats: LeaderboardStats;
+}
+
+export const FlockLeaderboard: React.FC<FlockLeaderboardProps> = ({ stats }) => {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -19,10 +35,13 @@ export const FlockLeaderboard: React.FC = () => {
           <div>
             <h3 className="text-gray-400 text-xs font-medium tracking-widest uppercase mb-1">Global Rank</h3>
             <div className="flex items-baseline gap-2">
-              <span className="font-serif text-4xl font-bold">#12</span>
-              <span className="text-green-400 text-sm font-medium flex items-center">
-                <TrendingUp className="w-3 h-3 mr-1" /> +3
-              </span>
+              <span className="font-serif text-4xl font-bold">#{stats.rank}</span>
+              {stats.rankChange !== 0 && (
+                <span className={`text-sm font-medium flex items-center ${stats.rankChange > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {stats.rankChange > 0 ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
+                  {Math.abs(stats.rankChange)}
+                </span>
+              )}
             </div>
           </div>
 
@@ -34,8 +53,8 @@ export const FlockLeaderboard: React.FC = () => {
         <div className="flex items-center justify-between">
           <div className="space-y-4">
             <div>
-              <h2 className="font-serif text-xl font-semibold mb-0.5">Night Owls</h2>
-              <p className="text-white/60 text-xs">4 Members • Top 5%</p>
+              <h2 className="font-serif text-xl font-semibold mb-0.5">{stats.flockName}</h2>
+              <p className="text-white/60 text-xs">{stats.memberCount} Members • Top {stats.percentile}%</p>
             </div>
 
             <div className="flex gap-4">
@@ -43,7 +62,7 @@ export const FlockLeaderboard: React.FC = () => {
                 <span className="text-white/50 text-[10px] uppercase tracking-wider mb-1">Weekly XP</span>
                 <span className="font-medium flex items-center gap-1.5">
                   <Trophy className="w-4 h-4 text-yellow-500" />
-                  12.4k
+                  {(stats.weeklyXp / 1000).toFixed(1)}k
                 </span>
               </div>
               <div className="w-px bg-white/10" />
@@ -51,16 +70,15 @@ export const FlockLeaderboard: React.FC = () => {
                 <span className="text-white/50 text-[10px] uppercase tracking-wider mb-1">Streak</span>
                 <span className="font-medium flex items-center gap-1.5">
                   <Flame className="w-4 h-4 text-accent" />
-                  14 Days
+                  {stats.streak} Days
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Group Energy Indicator (Visualized as a smooth gauge/ring) */}
-          <div className="relative w-20 h-20">
+          {/* Group Energy Indicator */}
+          <div className="relative w-20 h-20 shrink-0 ml-2">
              <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-               {/* Background Track */}
               <path
                 className="text-white/10"
                 strokeWidth="4"
@@ -69,11 +87,10 @@ export const FlockLeaderboard: React.FC = () => {
                 strokeLinecap="round"
                 d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
               />
-              {/* Energy Level */}
               <path
-                className="text-accent"
+                className="text-accent transition-all duration-1000 ease-out"
                 strokeWidth="4"
-                strokeDasharray="85, 100"
+                strokeDasharray={`${stats.energyPercent}, 100`}
                 strokeLinecap="round"
                 stroke="currentColor"
                 fill="none"
@@ -81,16 +98,15 @@ export const FlockLeaderboard: React.FC = () => {
               />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-xs font-bold">85%</span>
+              <span className="text-xs font-bold">{Math.round(stats.energyPercent)}%</span>
               <span className="text-[8px] text-white/60 uppercase tracking-wide">Energy</span>
             </div>
           </div>
         </div>
 
-        {/* Visual representation of member avatars in the card */}
         <div className="mt-6 flex -space-x-2">
-           {[1,2,3,4].map((i) => (
-             <img key={i} src={`https://i.pravatar.cc/150?u=a042581f4e29026704${i}`} className="w-8 h-8 rounded-full border border-white/20 object-cover opacity-80" alt={`Member ${i}`} />
+           {stats.members.map((member, i) => (
+             <img key={member.id} src={member.avatar} className="w-8 h-8 rounded-full border border-white/20 object-cover opacity-80" alt={`Member ${i}`} style={{ zIndex: 10 - i }} />
            ))}
         </div>
       </div>
