@@ -17,7 +17,7 @@ interface RecentMomentsProps {
 }
 
 export const RecentMoments: React.FC<RecentMomentsProps> = ({ moments }) => {
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     // Update the "now" state every minute to refresh relative times and progress bars

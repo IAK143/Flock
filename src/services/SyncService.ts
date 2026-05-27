@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { PromptState } from '../components/ActivePrompt';
 import type { Moment } from '../components/RecentMoments';
 import type { LeaderboardStats } from '../components/FlockLeaderboard';

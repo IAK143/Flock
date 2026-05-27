@@ -1,17 +1,40 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Shield, Fingerprint, Smartphone, Key } from 'lucide-react';
 import { DeviceIdentity } from '../services/DeviceIdentityService';
+import { supabase } from '../services/supabase';
 
 export const DeviceAuth: React.FC<{ onAuthenticated: () => void }> = ({ onAuthenticated }) => {
   const [status, setStatus] = useState<string>('Initializing secure enclave...');
   const [isRegistering, setIsRegistering] = useState(false);
 
-  useEffect(() => {
-    checkExistingIdentity();
-  }, []);
+  const performAuthentication = useCallback(async () => {
+    setStatus('Authenticating with backend...');
 
-  const checkExistingIdentity = async () => {
+    try {
+      // Establish session with Supabase anonymously
+      const { error } = await supabase.auth.signInAnonymously();
+
+      if (error) {
+        console.error('Supabase auth error:', error);
+        setStatus('Backend authentication failed.');
+        setIsRegistering(false);
+        return;
+      }
+
+      setStatus('Secure Session Established');
+      setTimeout(() => {
+        onAuthenticated();
+      }, 1000);
+
+    } catch (error) {
+      console.error(error);
+      setStatus('Authentication rejected.');
+      setIsRegistering(false);
+    }
+  }, [onAuthenticated]);
+
+  const checkExistingIdentity = useCallback(async () => {
     try {
       const identity = await DeviceIdentity.getIdentity();
 
@@ -21,10 +44,16 @@ export const DeviceAuth: React.FC<{ onAuthenticated: () => void }> = ({ onAuthen
       } else {
         setStatus('No identity found on this device.');
       }
-    } catch (e: any) {
+    } catch (error) {
+      console.error(error);
       setStatus('Error checking secure storage.');
     }
-  };
+  }, [performAuthentication]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    checkExistingIdentity();
+  }, [checkExistingIdentity]);
 
   const registerDevice = async () => {
     setIsRegistering(true);
@@ -34,40 +63,13 @@ export const DeviceAuth: React.FC<{ onAuthenticated: () => void }> = ({ onAuthen
       await DeviceIdentity.generateIdentity();
       setStatus('Device physically bound to account.');
 
-      // Simulate registering with backend
-      setTimeout(() => {
-         performAuthentication();
-      }, 1500);
+      // Perform authentication immediately after key generation
+      await performAuthentication();
 
-    } catch (e: any) {
+    } catch (error) {
+      console.error(error);
       setStatus('Failed to secure device.');
       setIsRegistering(false);
-    }
-  };
-
-  const performAuthentication = async () => {
-    setStatus('Authenticating with backend...');
-
-    try {
-      // 1. Simulate getting a nonce from backend
-      const serverNonce = `nonce-${Math.random().toString(36).substring(7)}`;
-
-      // 2. Sign challenge using hardware key
-      setStatus('Signing challenge securely...');
-      await DeviceIdentity.signChallenge({ nonce: serverNonce });
-
-      // 3. Simulate backend verification
-      setStatus('Backend verifying signature and fingerprint...');
-
-      setTimeout(() => {
-        setStatus('Secure Session Established');
-        setTimeout(() => {
-          onAuthenticated();
-        }, 1000);
-      }, 1000);
-
-    } catch (e: any) {
-      setStatus('Authentication rejected.');
     }
   };
 

@@ -5,6 +5,7 @@ import { ActivePrompt, type PromptState } from './components/ActivePrompt';
 import { FlockLeaderboard, type LeaderboardStats } from './components/FlockLeaderboard';
 import { RecentMoments, type Moment } from './components/RecentMoments';
 import { DeviceAuth } from './components/DeviceAuth';
+import { supabase } from './services/supabase';
 import { CameraFlow } from './components/CameraFlow';
 import { syncService } from './services/SyncService';
 
@@ -52,6 +53,21 @@ function App() {
   const [activeTab, setActiveTab] = useState<TabState>('flocks');
   const [isCameraActive, setIsCameraActive] = useState(false);
 
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setIsAuthenticated(!!session);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsAuthenticated(!!session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+
   // Realtime State
   const [prompt, setPrompt] = useState<PromptState | null>(null);
   const [moments, setMoments] = useState<Moment[]>([]);
@@ -63,6 +79,7 @@ function App() {
 
     // Setup Sync Service
     const initialState = syncService.getInitialState();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPrompt(initialState.activePrompt);
     setMoments(initialState.moments);
     setLeaderboardStats(initialState.leaderboardStats);
