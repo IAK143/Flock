@@ -102,6 +102,17 @@ export class SyncService {
       this.emit('prompt_updated', this.activePrompt);
     }
 
+    // Calculate Privacy XP
+    const earnedXp = this.activePrompt ? this.calculatePrivacyXP(this.activePrompt.expiresAt - (3 * 60 * 1000), Date.now()) : 10;
+    console.log(`[XP] Earned ${earnedXp} Privacy XP for this moment!`);
+
+    // Update local leaderboard optimistically
+    this.leaderboardStats = {
+      ...this.leaderboardStats,
+      weeklyXp: this.leaderboardStats.weeklyXp + earnedXp
+    };
+    this.emit('leaderboard_updated', this.leaderboardStats);
+
     // 3. Simulate WebRTC peer transfer
     console.log(`[WebRTC] Sending moment to peers (Globally: ${shareGlobally})`);
 
@@ -110,6 +121,31 @@ export class SyncService {
       this.moments[0].reactions += 1;
       this.emit('moments_updated', [...this.moments]);
     }, 5000);
+  }
+
+
+  private calculatePrivacyXP(promptCreatedAt: number, responseTimestamp: number): number {
+    let xp = 50; // Base consistency XP
+
+    // 1. Response speed (faster = more XP, max 50 bonus)
+    const timeToRespond = responseTimestamp - promptCreatedAt;
+    if (timeToRespond < 30 * 1000) xp += 50;
+    else if (timeToRespond < 60 * 1000) xp += 30;
+    else if (timeToRespond < 120 * 1000) xp += 10;
+
+    // 2. Night activity bonus (between 10 PM and 4 AM)
+    const hours = new Date(responseTimestamp).getHours();
+    if (hours >= 22 || hours <= 4) xp += 25;
+
+    // 3. Weekend streaks (Sat/Sun)
+    const day = new Date(responseTimestamp).getDay();
+    if (day === 0 || day === 6) xp += 25;
+
+    // 4. Streak Multiplier (mocking 14 day streak -> 1.4x)
+    const streak = this.leaderboardStats.streak || 1;
+    const multiplier = Math.min(2.0, 1.0 + (streak * 0.05));
+
+    return Math.floor(xp * multiplier);
   }
 
   private startSimulationLoop() {
